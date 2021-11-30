@@ -1,12 +1,13 @@
 package main;
 
 import Database.Database;
-import checker.Checkstyle;
 import checker.Checker;
+import checker.Checkstyle;
 import common.Constants;
 import fileio.Input;
 import fileio.InputLoader;
 import fileio.Writer;
+import org.json.JSONObject;
 import org.json.simple.JSONArray;
 
 import java.io.File;
@@ -76,6 +77,7 @@ public final class Main {
         videoPlatform.addMovies(input.getMovies());
         videoPlatform.addShows(input.getSerials());
         videoPlatform.addUsers(input.getUsers());
+        arrayResult = videoPlatform.addCommands(input.getCommands());
 
         fileWriter.closeJSON(arrayResult);
     }

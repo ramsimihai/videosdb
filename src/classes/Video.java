@@ -11,6 +11,7 @@ public class Video {
 	private int favCount;
 	private int viewCount;
 	private HashMap<User, Double> ratings;
+	private int numberOfSeasons;
 
 	public Video() {}
 
@@ -22,6 +23,7 @@ public class Video {
 		this.favCount = 0;
 		this.viewCount = 0;
 		this.ratings = new HashMap<>();
+		this.numberOfSeasons = 0;
 	}
 
 	public HashMap<User, Double> getRatings() {
@@ -34,6 +36,10 @@ public class Video {
 
 	public int getViewCount() {
 		return viewCount;
+	}
+
+	public void increaseFavCount() {
+		this.favCount++;
 	}
 
 	public int getYear() {
@@ -78,5 +84,17 @@ public class Video {
 
 	public void setViewCount(int viewCount) {
 		this.viewCount = viewCount;
+	}
+
+	public int getNumberOfSeasons() {
+		return numberOfSeasons;
+	}
+
+	public void setNumberOfSeasons(int numberOfSeasons) {
+		this.numberOfSeasons = numberOfSeasons;
+	}
+
+	public double getRating() {
+		return 0.0;
 	}
 }
