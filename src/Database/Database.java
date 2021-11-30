@@ -1,12 +1,13 @@
 package Database;
 
 
+import actions.Commander;
 import actor.ActorsAwards;
 import classes.*;
-import fileio.ActorInputData;
-import fileio.MovieInputData;
-import fileio.SerialInputData;
-import fileio.UserInputData;
+import fileio.*;
+
+import org.json.JSONObject;
+import org.json.simple.JSONArray;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +19,8 @@ public class Database {
 	private final List<Show> showsList = new ArrayList<>();
 	private final List<User> usersList = new ArrayList<>();
 	private final List<Video> videosList = new ArrayList<>();
+	private final Commander controlPanel = new Commander();
+
 	private static Database database = null;
 
 	private Database() {}
@@ -92,4 +95,28 @@ public class Database {
 		});
 	}
 
+	public JSONArray addCommands(List<ActionInputData> actions) {
+		controlPanel.addActions(actions);
+		return controlPanel.execute();
+	}
+
+	public List<User> getUsersList() {
+		return usersList;
+	}
+
+	public List<Video> getVideosList() {
+		return videosList;
+	}
+
+	public List<Actor> getActorsList() {
+		return actorsList;
+	}
+
+	public List<Movie> getMoviesList() {
+		return moviesList;
+	}
+
+	public List<Show> getShowsList() {
+		return showsList;
+	}
 }
