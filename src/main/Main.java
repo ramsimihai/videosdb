@@ -77,8 +77,11 @@ public final class Main {
         videoPlatform.addMovies(input.getMovies());
         videoPlatform.addShows(input.getSerials());
         videoPlatform.addUsers(input.getUsers());
+        videoPlatform.addVideos();
+
         arrayResult = videoPlatform.addCommands(input.getCommands());
 
         fileWriter.closeJSON(arrayResult);
+
     }
 }

@@ -26,6 +26,10 @@ public class User {
 		this.noRatingsGiven = 0;
 	}
 
+	public int getNoRatingsGiven() {
+		return noRatingsGiven;
+	}
+
 	public void setFavouriteVideos(ArrayList<String> favoriteMovies) {
 		this.favouriteVideos = favoriteMovies;
 	}

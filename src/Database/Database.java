@@ -14,12 +14,12 @@ import java.util.HashMap;
 import java.util.List;
 
 public class Database {
-	private final List<Actor> actorsList = new ArrayList<>();
-	private final List<Movie> moviesList = new ArrayList<>();
-	private final List<Show> showsList = new ArrayList<>();
-	private final List<User> usersList = new ArrayList<>();
-	private final List<Video> videosList = new ArrayList<>();
-	private final Commander controlPanel = new Commander();
+	private List<Actor> actorsList = new ArrayList<>();
+	private List<Movie> moviesList = new ArrayList<>();
+	private List<Show> showsList = new ArrayList<>();
+	private List<User> usersList = new ArrayList<>();
+	private List<Video> videosList = new ArrayList<>();
+	private Commander controlPanel = new Commander();
 
 	private static Database database = null;
 
@@ -31,14 +31,6 @@ public class Database {
 		}
 
 		return database;
-	}
-
-	public static int getNumberOfInstances() {
-		if (database != null) {
-			return 1;
-		}
-
-		return 0;
 	}
 
 	public void addActors(List<ActorInputData> actorsList) {
@@ -86,12 +78,10 @@ public class Database {
 
 	public void addVideos() {
 		this.moviesList.stream().forEach(movie -> {
-			Video videoMovie = new Video(movie.getTitle(), movie.getCast(), movie.getGenres(), movie.getYear());
-			database.videosList.add(videoMovie);
+			database.videosList.add(movie);
 		});
 		this.showsList.stream().forEach(show -> {
-			Video showsVideo = new Video(show.getTitle(), show.getCast(), show.getGenres(), show.getYear());
-			database.videosList.add(showsVideo);
+			database.videosList.add(show);
 		});
 	}
 
@@ -118,5 +108,14 @@ public class Database {
 
 	public List<Show> getShowsList() {
 		return showsList;
+	}
+
+	public void clear() {
+		usersList.clear();
+		moviesList.clear();
+		actorsList.clear();
+		showsList.clear();
+		videosList.clear();
+		controlPanel = new Commander();
 	}
 }
