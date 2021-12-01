@@ -3,48 +3,60 @@ package actions;
 import org.json.JSONObject;
 
 public abstract class Action {
-	private int actionID;
-	private String user;
-	private String actionType;
-	private String type;
+    private final int actionID;
+    private String user;
+    private String actionType;
+    private String type;
 
-	public Action(int actionID, String actionType, String type, String user) {
-		this.user = user;
-		this.actionID = actionID;
-		this.actionType = actionType;
-		this.type = type;
-	}
-	public String getType() {
-		return type;
-	}
+    /**
+     * constructor to initialize the fields of an object
+     * of a Class which extends Action
+     * @param actionID ID of the action
+     * @param actionType type of action (command / query / rec)
+     * @param type type of objects on which the action are applied
+     * @param user get the username
+     */
+    public Action(final int actionID,
+                  final String actionType,
+                  final String type,
+                  final String user) {
+        this.user = user;
+        this.actionID = actionID;
+        this.actionType = actionType;
+        this.type = type;
+    }
 
-	public int getActionID() {
-		return actionID;
-	}
+    /**
+     * get object type to do commands on
+     */
+    public final String getType() {
+        return type;
+    }
 
-	public String getActionType() {
-		return actionType;
-	}
+    /**
+     * getter of an actionID
+     */
+    public final int getActionID() {
+        return actionID;
+    }
 
-	public String getUser() {
-		return user;
-	}
+    /**
+     * getter of an action type
+     */
+    public final String getActionType() {
+        return actionType;
+    }
 
-	public void setType(String type) {
-		this.type = type;
-	}
+    /**
+     * getter of a username
+     */
+    public final String getUser() {
+        return user;
+    }
 
-	public void setActionID(int actionID) {
-		this.actionID = actionID;
-	}
-
-	public void setActionType(String actionType) {
-		this.actionType = actionType;
-	}
-
-	public void setUser(String user) {
-		this.user = user;
-	}
-
-	public abstract JSONObject execute();
+    /**
+     * execute a command in function of what type of action (query, command, recommend)
+     * @return JSONObject after the execution of a command
+     */
+    public abstract JSONObject execute();
 }
