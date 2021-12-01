@@ -3,7 +3,7 @@ package classes;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class Video {
+public abstract class Video {
 	private String title;
 	private int year;
 	private ArrayList<String> cast;
@@ -94,7 +94,7 @@ public class Video {
 		this.numberOfSeasons = numberOfSeasons;
 	}
 
-	public double getRating() {
-		return 0.0;
-	}
+	public abstract double getRating();
+
+	public abstract int getDuration();
 }

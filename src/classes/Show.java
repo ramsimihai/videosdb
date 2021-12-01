@@ -15,6 +15,15 @@ public class Show extends Video {
 		this.seasons = seasons;
 	}
 
+	public int getDuration() {
+		int duration = 0;
+		for (Season season : seasons) {
+			duration += season.getDuration();
+		}
+
+		return duration;
+	}
+
 	public ArrayList<Season> getSeasons() {
 		return seasons;
 	}
