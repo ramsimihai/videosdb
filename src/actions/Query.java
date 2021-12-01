@@ -1,358 +1,444 @@
 package actions;
 
-import Database.Database;
-import classes.*;
+import database.Database;
+import actor.Actor;
+import video.Movie;
+import video.Show;
+import users.User;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static java.lang.Integer.parseInt;
+import static common.Constants.INDEX_GET_YEAR;
+import static common.Constants.INDEX_GET_GENRE;
+import static common.Constants.INDEX_GET_WORDS;
+import static common.Constants.INDEX_GET_AWARDS;
 
 public class Query extends Action {
-	private int number;
-	private List<List<String>> filters = new ArrayList<>();
-	private String sortType;
-	private String criteria;
+    private final int number;
+    private final List<List<String>> filters = new ArrayList<>();
+    private final String sortType;
+    private final String criteria;
 
-	public Query(int actionID, String actionType, String type, String user,
-				 String sortType, String criteria, int number, List<List<String>> filters) {
-		super(actionID, actionType, type, user);
-		this.number = number;
-		this.sortType = sortType;
-		this.criteria = criteria;
-		this.filters.add(new ArrayList<>(filters.get(0)));
-		this.filters.add(new ArrayList<>(filters.get(1)));
-		this.filters.add(filters.get(2));
-		this.filters.add(filters.get(3));
-	}
+    /**
+     *
+     * @param actionID number of ID
+     * @param actionType type of action (query, command, recommend)
+     * @param type type of objects on which the actions are performed
+     * @param user username
+     * @param sortType sort type (desc / asc)
+     * @param criteria criteria to do a query
+     * @param number number of results from a query
+     * @param filters filters used for filtering the list
+     */
+    public Query(final int actionID,
+                 final String actionType,
+                 final String type, final String user,
+                 final String sortType, final String criteria,
+                 final int number, final List<List<String>> filters) {
+        super(actionID, actionType, type, user);
+        this.number = number;
+        this.sortType = sortType;
+        this.criteria = criteria;
+        this.filters.add(new ArrayList<>(filters.get(INDEX_GET_YEAR)));
+        this.filters.add(new ArrayList<>(filters.get(INDEX_GET_GENRE)));
+        this.filters.add(filters.get(INDEX_GET_WORDS));
+        this.filters.add(filters.get(INDEX_GET_AWARDS));
+    }
 
-	public int getNumber() {
-		return number;
-	}
+    public final int getNumber() {
+        return number;
+    }
 
-	public List<List<String>> getFilters() {
-		return filters;
-	}
+    public final List<List<String>> getFilters() {
+        return filters;
+    }
 
-	List<Actor> filteredActorsList(List<Actor> actors, List<List<String>> filters) {
-		if (filters.get(3) != null && !filters.get(3).isEmpty()) {
-			List<String> requiredAwardsList = filters.get(3).stream()
-					.map(String::toLowerCase)
-					.toList();
-			actors = actors.stream().filter(actor -> {
-				List<String> actorAwardsList = actor.getAwards().keySet().stream()
-						.map(award -> String.valueOf(award).toLowerCase())
-						.toList();
-				int counter = 0;
-				for (String requiredAward : requiredAwardsList) {
-					if (actorAwardsList.contains(requiredAward)) {
-						counter++;
-					}
-				}
+    /**
+     * get the filtered list of actors by only two arguments from the filters list
+     * such as words that matches in a description and awards gotten by the actors
+     * @param actors list of actors
+     * @param filtersForActors list of filters for actors
+     * @return a list of actors that is filtered
+     */
+    List<Actor> filteredActorsList(List<Actor> actors, final List<List<String>> filtersForActors) {
+        if (filtersForActors.get(INDEX_GET_AWARDS) != null
+                && !filtersForActors.get(INDEX_GET_AWARDS).isEmpty()) {
+            List<String> requiredAwardsList = filtersForActors
+                    .get(INDEX_GET_AWARDS)
+                    .stream()
+                    .map(String::toLowerCase).toList();
 
-				if (counter >= requiredAwardsList.size()) {
-					return true;
-				}
-				return false;
-			}).collect(Collectors.toList());
-		}
+            actors = actors.stream().filter(actor -> {
+                List<String> actorAwardsList = actor.getAwards().keySet()
+                        .stream().map(award -> String.valueOf(award)
+                                .toLowerCase()).toList();
+                int counter = 0;
+                for (String requiredAward : requiredAwardsList) {
+                    if (actorAwardsList.contains(requiredAward)) {
+                        counter++;
+                    }
+                }
 
-		if (filters.get(2) != null && !filters.get(2).isEmpty()) {
-			actors = actors.stream().filter(actor -> {
-				for (String keyword : filters.get(2)) {
-					String regex = "[ -]" + keyword + "[ ,.!?'-]";
-					Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
-					Matcher matcher = pattern.matcher(actor.getCareerDescription());
+                return counter >= requiredAwardsList.size();
+            }).collect(Collectors.toList());
+        }
 
-					if (!matcher.find()) {
-						return false;
-					}
-				}
+        if (filtersForActors.get(INDEX_GET_WORDS) != null
+                && !filtersForActors.get(INDEX_GET_WORDS).isEmpty()) {
+            actors = actors.stream().filter(actor -> {
+                for (String keyword : filtersForActors.get(INDEX_GET_WORDS)) {
+                    String regex = "[ -]" + keyword + "[ ,.!?'-]";
+                    Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
+                    Matcher matcher = pattern.matcher(actor.getCareerDescription());
 
-				return true;
-			}).collect(Collectors.toList());
-		}
+                    if (!matcher.find()) {
+                        return false;
+                    }
+                }
 
-		return actors;
-	}
+                return true;
+            }).collect(Collectors.toList());
+        }
 
-	public String queryActors() {
-		List<Actor> filteredActors = filteredActorsList(Database.getInstance().getActorsList(), this.filters);
+        return actors;
+    }
 
-		List<Actor> sortedList = null;
-		switch (this.getType()) {
-			case "filter_description":
-				Comparator<Actor> nameComparator = Comparator.comparing(Actor::getName);
+    /**
+     * the main body of the command which is executed in function of criteria
+     * filter_description -> for description of actors
+     * average -> for average rating of actors
+     * awards -> for number of total awards
+     * all criteria lists are firstly filtered
+     * @return
+     */
+    public String queryActors() {
+        List<Actor> filteredActors = filteredActorsList(
+                Database.getInstance().getActorsList(), this.filters);
 
-				if (sortType.equals("desc")) {
-					nameComparator = nameComparator.reversed();
-				}
+        List<Actor> sortedList;
 
-				sortedList = filteredActors.stream().sorted(nameComparator).limit(this.number).collect(Collectors.toList());
-				break;
-			case "average":
-				Comparator<Actor> averageComparator = Comparator.comparing(Actor::getAverageRating);
+        switch (criteria) {
+            case "filter_description" -> {
+                Comparator<Actor> nameComparator = Comparator.comparing(Actor::getName);
+                if (sortType.equals("desc")) {
+                    nameComparator = nameComparator.reversed();
+                }
+                sortedList = filteredActors.stream()
+                        .sorted(nameComparator).limit(this.number)
+                        .collect(Collectors.toList());
+            }
+            case "average" -> {
+                Comparator<Actor> averageComparator = Comparator.comparing(Actor::getAverageRating)
+                        .thenComparing(Actor::getName);
+                if (sortType.equals("desc")) {
+                    averageComparator = averageComparator.reversed();
+                }
+                sortedList = filteredActors.stream().sorted(averageComparator)
+                        .filter(actor -> actor.getAverageRating() > 0)
+                        .limit(this.number).collect(Collectors.toList());
+            }
+            case "awards" -> {
+                Comparator<Actor> awardsComparator = Comparator.comparing(Actor::getTotalNoAwards)
+                        .thenComparing(Actor::getName);
+                if (sortType.equals("desc")) {
+                    awardsComparator = awardsComparator.reversed();
+                }
+                sortedList = filteredActors.stream().sorted(awardsComparator).limit(this.number)
+                        .collect(Collectors.toList());
+            }
+            default -> {
+                return null;
+            }
+        }
 
-				if (sortType.equals("desc")) {
-					averageComparator = averageComparator.reversed();
-				}
+        StringBuilder actorsNameList = new StringBuilder();
+        int counter = 0;
+        for (Actor actor : sortedList) {
+            counter++;
+            if (counter == sortedList.size()) {
+                actorsNameList.append(actor.getName());
+                break;
+            }
+            actorsNameList.append(actor.getName()).append(", ");
+        }
 
-				sortedList = filteredActors.stream().sorted(averageComparator).limit(this.number).collect(Collectors.toList());
-				break;
-			case "awards":
-				Comparator<Actor> awardsComparator = Comparator.comparing(Actor::getTotalNoAwards).thenComparing(Actor::getName);
+        return "Query result: [" + actorsNameList + "]";
+    }
 
-				if (sortType.equals("desc")) {
-					awardsComparator = awardsComparator.reversed();
-				}
+    /**
+     * get the filtered list of movies by only two arguments from the filters list
+     * such as years and genres
+     * @param movies list of actors
+     * @param moviesFilters list of filters for actors
+     * @return a list of actors that is filtered
+     */
+    public List<Movie> filteredMoviesList(List<Movie> movies,
+                                          final List<List<String>> moviesFilters) {
+        if (moviesFilters.get(INDEX_GET_YEAR) != null
+                && moviesFilters.get(INDEX_GET_YEAR).get(0) != null) {
+            movies = movies.stream().filter(movie -> {
+                if (moviesFilters.get(INDEX_GET_YEAR).get(0) == null) {
+                    return false;
+                } else {
+                    return movie.getYear() == Integer.parseInt(
+                        moviesFilters.get(INDEX_GET_YEAR).get(0));
+                }
+            }).toList();
+        }
 
-				sortedList = filteredActors.stream().sorted(awardsComparator).limit(this.number).collect(Collectors.toList());
-				break;
-		}
+        if (moviesFilters.get(INDEX_GET_GENRE) != null
+                && moviesFilters.get(INDEX_GET_GENRE).get(0) != null) {
+            movies = movies.stream().filter(movie -> {
+                for (String genre : movie.getGenres()) {
+                    if (genre.equals(moviesFilters.get(INDEX_GET_GENRE).get(0))) {
+                        return true;
+                    }
+                }
+                return false;
+            }).toList();
+        }
 
-		if (sortedList == null) {
-			sortedList = filteredActors;
-		}
+        return movies;
+    }
 
-		StringBuilder actorsNameList = new StringBuilder();
-		int counter = 0;
-		for (Actor actor : sortedList) {
-			counter++;
-			if (counter == sortedList.size()) {
-				actorsNameList.append(actor.getName());
-				break;
-			}
-			actorsNameList.append(actor.getName() + " ");
-		}
+    /**
+     * the main body of the command which is executed in function of criteria
+     * ratings -> for ratings of movies
+     * favorite -> for no favorites entries in users history
+     * longest -> for longest movie
+     * most_viewed -> for no total views
+     * @return
+     */
+    public String queryMovies() {
+        List<Movie> filteredMovies = filteredMoviesList(Database
+                .getInstance().getMoviesList(), filters);
 
-		return "Query result: [" + actorsNameList + "]";
-	}
+        List<Movie> sortedList;
+        switch (criteria) {
+            case "ratings" -> {
+                Comparator<Movie> ratingComparator = Comparator.comparing(Movie::getRating)
+                        .thenComparing(Movie::getTitle);
+                if (sortType.equals("desc")) {
+                    ratingComparator = ratingComparator.reversed();
+                }
+                sortedList = filteredMovies.stream().sorted(ratingComparator)
+                        .filter(movie -> movie.getRating() > 0)
+                        .limit(number).collect(Collectors.toList());
+            }
+            case "favorite" -> {
+                Comparator<Movie> favComparator = Comparator.comparing(Movie::getFavCount)
+                        .thenComparing(Movie::getTitle);
+                if (sortType.equals("desc")) {
+                    favComparator = favComparator.reversed();
+                }
+                sortedList = filteredMovies.stream().sorted(favComparator).
+                        filter(movie -> movie.getFavCount() > 0)
+                        .limit(number).collect(Collectors.toList());
+            }
+            case "longest" -> {
+                Comparator<Movie> longestComparator = Comparator.comparing(Movie::getDuration)
+                        .thenComparing(Movie::getTitle);
+                if (sortType.equals("desc")) {
+                    longestComparator = longestComparator.reversed();
+                }
+                sortedList = filteredMovies.stream().sorted(longestComparator)
+                        .limit(number).collect(Collectors.toList());
+            }
+            case "most_viewed" -> {
+                Comparator<Movie> mostViewedComparator = Comparator.comparing(Movie::getViewCount)
+                        .thenComparing(Movie::getTitle);
+                if (sortType.equals("desc")) {
+                    mostViewedComparator = mostViewedComparator.reversed();
+                }
+                sortedList = filteredMovies.stream().sorted(mostViewedComparator)
+                        .filter(movie -> movie.getViewCount() > 0)
+                        .limit(number).collect(Collectors.toList());
+            }
+            default -> {
+                return null;
+            }
+        }
 
-	public List<Movie> filteredMoviesList(List<Movie> movies, List<List<String>> filters) {
-		if (filters.get(0) != null && !filters.get(0).isEmpty()) {
-			movies = movies.stream().filter(movie -> {
-				if (filters.get(0).get(0) == null) {
-					return false;
-				} else if (movie.getYear() == Integer.parseInt(filters.get(0).get(0))) {
-					return true;
-				}
+        StringBuilder moviesNameList = new StringBuilder();
+        int counter = 0;
+        for (Movie movie : sortedList) {
+            counter++;
+            if (counter == sortedList.size()) {
+                moviesNameList.append(movie.getTitle());
+                break;
+            }
 
-				return false;
-			}).toList();
-		}
+            moviesNameList.append(movie.getTitle()).append(", ");
+        }
 
-		if (filters.get(1) != null && !filters.get(1).isEmpty()) {
-			movies = movies.stream().filter(movie -> {
-				for (String genre : movie.getGenres()) {
-					if (genre.equals(filters.get(1).get(0))) {
-						return true;
-					}
-				}
-				return false;
-			}).toList();
-		}
+        return "Query result: [" + moviesNameList + "]";
+    }
 
-		return movies;
-	}
+    /**
+     * get the filtered list of shows by only two arguments from the filters list
+     * such as years and genres
+     * @param shows list of actors
+     * @param showsFilters list of filters for actors
+     * @return a list of actors that is filtered
+     */
+    public List<Show> filteredShowsList(List<Show> shows, final List<List<String>> showsFilters) {
+        if (showsFilters.get(INDEX_GET_YEAR) != null
+                && showsFilters.get(INDEX_GET_YEAR).get(0) != null) {
+            shows = shows.stream().filter(show -> {
+                if (filters.get(INDEX_GET_YEAR).get(0) == null) {
+                    return false;
+                } else {
+                    return show.getYear() == Integer.parseInt(showsFilters
+                            .get(INDEX_GET_YEAR).get(0));
+                }
+            }).toList();
+        }
 
-	public String queryMovies() {
-		List<Movie> filteredMovies = filteredMoviesList(Database.getInstance().getMoviesList(), filters);
-		List<Movie> sortedList = null;
-		switch (criteria) {
-			case "rating":
-				Comparator<Movie> ratingComparator = Comparator.comparing(Movie::getRating).thenComparing(Movie::getTitle);
+        if (showsFilters.get(INDEX_GET_GENRE) != null
+                && showsFilters.get(INDEX_GET_GENRE).get(0) != null) {
+            shows = shows.stream().filter(show -> {
+                for (String genre : show.getGenres()) {
+                    if (genre.equals(showsFilters.get(INDEX_GET_GENRE).get(0))) {
+                        return true;
+                    }
+                }
+                return false;
+            }).toList();
+        }
 
-				if (sortType.equals("desc")) {
-					ratingComparator = ratingComparator.reversed();
-				}
+        return shows;
+    }
 
-				sortedList = filteredMovies.stream().sorted(ratingComparator).limit(number).collect(Collectors.toList());
-				break;
-			case "favorite":
-				Comparator<Movie> favComparator = Comparator.comparing(Movie::getFavCount).thenComparing(Movie::getTitle);
+    /**
+     * the main body of the command which is executed in function of criteria
+     * ratings -> for ratings of show
+     * favorite -> for no favorites entries in users history
+     * longest -> for longest show
+     * most_viewed -> for no total views
+     * @return
+     */
+    public String queryShows() {
+        List<Show> filteredShows = filteredShowsList(Database.getInstance()
+                .getShowsList(), filters);
 
-				if (sortType.equals("desc")) {
-					favComparator = favComparator.reversed();
-				}
+        List<Show> sortedList;
+        switch (criteria) {
+            case "ratings" -> {
+                Comparator<Show> ratingComparator = Comparator.comparing(Show::getRating)
+                        .thenComparing(Show::getTitle);
+                if (sortType.equals("desc")) {
+                    ratingComparator = ratingComparator.reversed();
+                }
 
-				sortedList = filteredMovies.stream().sorted(favComparator).limit(number).collect(Collectors.toList());
-				break;
-			case "longest":
-				Comparator<Movie> longestComparator = Comparator.comparing(Movie::getDuration).thenComparing(Movie::getTitle);
-				if (sortType.equals("desc")) {
-					longestComparator = longestComparator.reversed();
-				}
+                sortedList = filteredShows.stream().sorted(ratingComparator)
+                        .filter(show -> show.getRating() > 0)
+                        .limit(number).collect(Collectors.toList());
+            }
+            case "favorite" -> {
+                Comparator<Show> favComparator = Comparator.comparing(Show::getFavCount)
+                        .thenComparing(Show::getTitle);
+                if (sortType.equals("desc")) {
+                    favComparator = favComparator.reversed();
+                }
+                sortedList = filteredShows.stream().sorted(favComparator)
+                        .filter(show -> show.getFavCount() > 0)
+                        .limit(number).collect(Collectors.toList());
+            }
+            case "longest" -> {
+                Comparator<Show> longestComparator = Comparator.comparing(Show::getDuration)
+                        .thenComparing(Show::getTitle);
+                if (sortType.equals("desc")) {
+                    longestComparator = longestComparator.reversed();
+                }
+                sortedList = filteredShows.stream().sorted(longestComparator)
+                        .limit(number).collect(Collectors.toList());
+            }
+            case "most_viewed" -> {
+                Comparator<Show> mostViewedComparator = Comparator.comparing(Show::getViewCount)
+                        .thenComparing(Show::getTitle);
+                if (sortType.equals("desc")) {
+                    mostViewedComparator = mostViewedComparator.reversed();
+                }
+                sortedList = filteredShows.stream().sorted(mostViewedComparator)
+                        .filter(show -> show.getViewCount() > 0)
+                        .limit(number).collect(Collectors.toList());
+            }
+            default -> {
+                return null;
+            }
+        }
 
-				sortedList = filteredMovies.stream().sorted(longestComparator).limit(number).collect(Collectors.toList());
+        StringBuilder showNameList = new StringBuilder();
+        int counter = 0;
+        for (Show show : sortedList) {
+            counter++;
+            if (counter == sortedList.size()) {
+                showNameList.append(show.getTitle());
+                break;
+            }
 
-				break;
-			case "most_viewed":
-				Comparator<Movie> mostViewedComparator = Comparator.comparing(Movie::getViewCount).thenComparing(Movie::getTitle);
+            showNameList.append(show.getTitle()).append(", ");
+        }
 
-				if (sortType.equals("desc")) {
-					mostViewedComparator = mostViewedComparator.reversed();
-				}
+        return "Query result: [" + showNameList + "]";
+    }
 
-				sortedList = filteredMovies.stream().sorted(mostViewedComparator).limit(number).collect(Collectors.toList());
-				break;
-		}
-		if (sortedList == null) {
-			sortedList = filteredMovies;
-		}
+    /**
+     * execution of the query command to a user object
+     * by sorting the users in function of noRatingsGiven
+     * @return the String that contains the message of the JSONObject
+     */
+    public String queryUsers() {
+        List<User> sortedList = Database.getInstance().getUsersList();
+        Comparator<User> noRatingsComparator = Comparator.comparing(User::getNoRatingsGiven)
+                .thenComparing(User::getUsername);
 
-		StringBuilder moviesNameList = new StringBuilder();
-		int counter = 0;
-		for (Movie movie : sortedList) {
-			counter++;
-			if (counter == sortedList.size()) {
-				moviesNameList.append(movie.getTitle());
-				break;
-			}
+        if (sortType.equals("desc")) {
+            noRatingsComparator = noRatingsComparator.reversed();
+        }
 
-			moviesNameList.append(movie.getTitle() + " ");
-		}
+        sortedList = sortedList.stream().sorted(noRatingsComparator)
+                .filter(user -> user.getNoRatingsGiven() > 0)
+                .limit(number).collect(Collectors.toList());
 
-		return "Query result: [" + moviesNameList + "]";
-	}
+        StringBuilder usersNameList = new StringBuilder();
+        int counter = 0;
+        for (User user : sortedList) {
+            counter++;
+            if (counter == sortedList.size()) {
+                usersNameList.append(user.getUsername());
+                break;
+            }
 
-	public List<Show> filteredShowsList(List<Show> shows, List<List<String>> filters) {
-		if (filters.get(0) != null && !filters.get(0).isEmpty()) {
-			shows = shows.stream().filter(show -> {
-				if (filters.get(0).get(0) == null) {
-					return false;
-				} else if (show.getYear() == Integer.parseInt(filters.get(0).get(0))) {
-					return true;
-				}
+            usersNameList.append(user.getUsername()).append(", ");
+        }
 
-				return false;
-			}).toList();
-		}
+        return "Query result: [" + usersNameList + "]";
+    }
 
-		if (filters.get(1) != null && !filters.get(1).isEmpty()) {
-			shows = shows.stream().filter(show -> {
-				for (String genre : show.getGenres()) {
-					if (genre.equals(filters.get(1).get(0))) {
-						return true;
-					}
-				}
-				return false;
-			}).toList();
-		}
-
-		return shows;
-	}
-
-	public String queryShows() {
-		List<Show> filteredShows = filteredShowsList(Database.getInstance().getShowsList(), filters);
-
-		List<Show> sortedList = null;
-		switch (criteria) {
-			case "rating":
-				Comparator<Show> ratingComparator = Comparator.comparing(Show::getRating).thenComparing(Show::getTitle);
-
-				if (sortType.equals("desc")) {
-					ratingComparator = ratingComparator.reversed();
-				}
-
-				sortedList = filteredShows.stream().sorted(ratingComparator).limit(number).collect(Collectors.toList());
-				break;
-			case "favorite":
-				Comparator<Show> favComparator = Comparator.comparing(Show::getFavCount).thenComparing(Show::getTitle);
-
-				if (sortType.equals("desc")) {
-					favComparator = favComparator.reversed();
-				}
-
-				sortedList = filteredShows.stream().sorted(favComparator).limit(number).collect(Collectors.toList());
-				break;
-			case "longest":
-				Comparator<Show> longestComparator = Comparator.comparing(Show::getDuration).thenComparing(Show::getTitle);
-				if (sortType.equals("desc")) {
-					longestComparator = longestComparator.reversed();
-				}
-
-				sortedList = filteredShows.stream().sorted(longestComparator).limit(number).collect(Collectors.toList());
-
-				break;
-			case "most_viewed":
-				Comparator<Show> mostViewedComparator = Comparator.comparing(Show::getViewCount).thenComparing(Show::getTitle);
-
-				if (sortType.equals("desc")) {
-					mostViewedComparator = mostViewedComparator.reversed();
-				}
-
-				sortedList = filteredShows.stream().sorted(mostViewedComparator).limit(number).collect(Collectors.toList());
-				break;
-		}
-		if (sortedList == null) {
-			sortedList = filteredShows;
-		}
-
-		StringBuilder showNameList = new StringBuilder();
-		int counter = 0;
-		for (Show show : sortedList) {
-			counter++;
-			if (counter == sortedList.size()) {
-				showNameList.append(show.getTitle());
-				break;
-			}
-
-			showNameList.append(show.getTitle() + " ");
-		}
-
-		return "Query result: [" + showNameList + "]";
-	}
-
-	public String queryUsers() {
-		List<User> sortedList = Database.getInstance().getUsersList();
-		Comparator<User> noRatingsComparator = Comparator.comparing(User::getNoRatingsGiven).thenComparing(User::getUsername);
-
-		if (sortType.equals("desc")) {
-			noRatingsComparator = noRatingsComparator.reversed();
-		}
-
-		sortedList = sortedList.stream().sorted(noRatingsComparator).limit(number).collect(Collectors.toList());
-
-		StringBuilder usersNameList = new StringBuilder();
-		int counter = 0;
-		for (User user : sortedList) {
-			counter++;
-			if (counter == sortedList.size()) {
-				usersNameList.append(user.getUsername());
-				break;
-			}
-
-			usersNameList.append(user.getUsername() + " ");
-		}
-
-		return "Query result: [" + usersNameList + "]";
-	}
-
-	@Override
-	public JSONObject execute() {
-		JSONObject myObj = new JSONObject();
-		myObj.put("id", getActionID());
-		switch (getType()) {
-			case "actors":
-				myObj.put("message", this.queryActors());
-				break;
-			case "movies":
-				myObj.put("message", this.queryMovies());
-				break;
-			case "shows":
-				myObj.put("message", this.queryShows());
-				break;
-			case "users":
-				myObj.put("message", this.queryUsers());
-				break;
-
-		}
-		return myObj;
-	}
+    /**
+     * the execution of a query command in function of type
+     * @return
+     */
+    @Override
+    public JSONObject execute() {
+        JSONObject myObj = new JSONObject();
+        myObj.put("id", getActionID());
+        switch (getType()) {
+            case "actors" -> myObj.put("message", this.queryActors());
+            case "movies" -> myObj.put("message", this.queryMovies());
+            case "shows" -> myObj.put("message", this.queryShows());
+            case "users" -> myObj.put("message", this.queryUsers());
+            default -> {
+                return null;
+            }
+        }
+        return myObj;
+    }
 }
